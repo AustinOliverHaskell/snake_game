@@ -63,14 +63,14 @@ fn main() {
     } 
     let audio_device = audio_device.unwrap();
 
-    let gulp_sound   = audio_device.new_sound(r"D:\Projects\snake_game\assets\sounds\woosh.mp3");
+    let gulp_sound   = audio_device.new_sound(r"assets\sounds\woosh.mp3");
     if  gulp_sound.is_err() {
         println!("Failed to load gulp sound effect. ");
         return;
     }
     let gulp_sound = gulp_sound.unwrap();
 
-    let background_music   = audio_device.new_music(r"D:\Projects\snake_game\assets\music\jungle_background.mp3");
+    let background_music   = audio_device.new_music(r"assets\music\jungle_background.mp3");
     if  background_music.is_err() {
         println!("Failed to load background music. ");
         return;
@@ -83,12 +83,12 @@ fn main() {
     }
 
     let texture_map = TextureMap {
-        snake_head_texture:     raylib.load_texture(&render_thread, r"D:\Projects\snake_game\assets\sprites\snake_head_20x20.png").unwrap(),
-        snake_corner_texture:   raylib.load_texture(&render_thread, r"D:\Projects\snake_game\assets\sprites\snake_corner_20x20.png").unwrap(),
-        snake_middle_texture:   raylib.load_texture(&render_thread, r"D:\Projects\snake_game\assets\sprites\snake_middle_20x20.png").unwrap(),
-        snake_tail_texture:     raylib.load_texture(&render_thread, r"D:\Projects\snake_game\assets\sprites\snake_tail_20x20.png").unwrap(),
-        apple_texture:          raylib.load_texture(&render_thread, r"D:\Projects\snake_game\assets\sprites\apple_20x20.png").unwrap(),
-        background_texture:     raylib.load_texture(&render_thread, r"D:\Projects\snake_game\assets\sprites\background.png").unwrap(),
+        snake_head_texture:     raylib.load_texture(&render_thread, r"assets\sprites\snake_head_20x20.png").unwrap(),
+        snake_corner_texture:   raylib.load_texture(&render_thread, r"assets\sprites\snake_corner_20x20.png").unwrap(),
+        snake_middle_texture:   raylib.load_texture(&render_thread, r"assets\sprites\snake_middle_20x20.png").unwrap(),
+        snake_tail_texture:     raylib.load_texture(&render_thread, r"assets\sprites\snake_tail_20x20.png").unwrap(),
+        apple_texture:          raylib.load_texture(&render_thread, r"assets\sprites\apple_20x20.png").unwrap(),
+        background_texture:     raylib.load_texture(&render_thread, r"assets\sprites\background.png").unwrap(),
     };
 
     let mut snake = create_starting_snake();
