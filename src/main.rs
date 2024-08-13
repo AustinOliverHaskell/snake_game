@@ -1,5 +1,7 @@
 use raylib::prelude::*;
 
+mod particles;
+
 const SCREEN_WIDTH : u32 = 640;
 const SCREEN_HEIGHT: u32 = 480;
 
@@ -35,15 +37,17 @@ impl Snake {
 }
 
 struct TextureMap {
-    snake_head_texture:     Texture2D, 
-    snake_corner_texture:   Texture2D, 
-    snake_middle_texture:   Texture2D, 
-    snake_tail_texture:     Texture2D,
-    apple_texture:          Texture2D,
-    background_texture:     Texture2D
+    snake_head_straight_texture:             Texture2D, 
+    snake_head_turning_right_texture:       Texture2D, 
+    snake_head_turning_left_texture:        Texture2D, 
+    snake_corner_texture:                   Texture2D, 
+    snake_middle_texture:                   Texture2D, 
+    snake_tail_texture:                     Texture2D,
+    apple_texture:                          Texture2D,
+    background_texture:                     Texture2D,
 }
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug)]
 struct Apple {
     x: f32,
     y: f32,
@@ -83,12 +87,14 @@ fn main() {
     }
 
     let texture_map = TextureMap {
-        snake_head_texture:     raylib.load_texture(&render_thread, r"assets\sprites\snake_head_20x20.png").unwrap(),
-        snake_corner_texture:   raylib.load_texture(&render_thread, r"assets\sprites\snake_corner_20x20.png").unwrap(),
-        snake_middle_texture:   raylib.load_texture(&render_thread, r"assets\sprites\snake_middle_20x20.png").unwrap(),
-        snake_tail_texture:     raylib.load_texture(&render_thread, r"assets\sprites\snake_tail_20x20.png").unwrap(),
-        apple_texture:          raylib.load_texture(&render_thread, r"assets\sprites\apple_20x20.png").unwrap(),
-        background_texture:     raylib.load_texture(&render_thread, r"assets\sprites\background.png").unwrap(),
+        snake_head_straight_texture:        raylib.load_texture(&render_thread, r"assets\sprites\snake_head_straight_20x20.png").unwrap(),
+        snake_head_turning_right_texture:   raylib.load_texture(&render_thread, r"assets\sprites\snake_head_turning_right_20x20.png").unwrap(),
+        snake_head_turning_left_texture:    raylib.load_texture(&render_thread, r"assets\sprites\snake_head_turning_left_20x20.png").unwrap(),
+        snake_corner_texture:               raylib.load_texture(&render_thread, r"assets\sprites\snake_corner_20x20.png").unwrap(),
+        snake_middle_texture:               raylib.load_texture(&render_thread, r"assets\sprites\snake_middle_20x20.png").unwrap(),
+        snake_tail_texture:                 raylib.load_texture(&render_thread, r"assets\sprites\snake_tail_20x20.png").unwrap(),
+        apple_texture:                      raylib.load_texture(&render_thread, r"assets\sprites\apple_20x20.png").unwrap(),
+        background_texture:                 raylib.load_texture(&render_thread, r"assets\sprites\background.png").unwrap(),
     };
 
     let mut snake = create_starting_snake();
@@ -110,10 +116,21 @@ fn main() {
 
     const TIME_TO_MOVE: f32             = 0.15;
     let mut time_since_last_move: f32   = 0.0;
-
     let mut game_over: bool = false;
-
     let mut enlarge_snake: bool = false;
+
+    let mut particle_system = particles::ParticleSystem::create_radial(
+        0.5, 
+        vec![Color::BLACK, Color::BLUE, Color::WHITE],
+        25, 
+        Vector2 {
+            x: SCREEN_WIDTH  as f32 / 2.0,
+            y: SCREEN_HEIGHT as f32 / 2.0
+        }, 
+        40.0,
+        0.25
+    );
+
     while !raylib.window_should_close() {
 
         if game_over && raylib.is_key_released(KeyboardKey::KEY_ENTER) {
@@ -150,6 +167,7 @@ fn main() {
         if apple_overlaps_with_snake_head {
             enlarge_snake = true;
             gulp_sound.play();
+            particle_system.reset(0.5, Vector2 { x: apple.x + 10.0, y: apple.y + 10.0});
             place_apple(&mut apple, &snake, &raylib, play_area);
             score += 1;
         }
@@ -160,6 +178,7 @@ fn main() {
 
         let mut draw_context = raylib.begin_drawing(&render_thread);
 
+        particle_system.step(draw_context.get_frame_time());
         if !game_over {
             apple.time_left      -= draw_context.get_frame_time();
             time_since_last_move += draw_context.get_frame_time();
@@ -173,7 +192,7 @@ fn main() {
             }
         }
 
-        draw_game(&mut draw_context, &texture_map, &snake, &apple);        
+        draw_game(&mut draw_context, &texture_map, &snake, &apple, &particle_system);        
 
         if game_over {
             draw_context.draw_text("GAME OVER", 640 / 2 - 50, 480 / 2, 20, Color::BLACK);
@@ -220,23 +239,23 @@ fn map_difference_in_direction_to_rotation_for_snake_corner(
 
     match segment_before {
         Direction::UP    => return match current_direction {
-            Direction::LEFT  => 180.0,
-            Direction::RIGHT =>  90.0,
+            Direction::LEFT  => 270.0,
+            Direction::RIGHT => 180.0,
             _ => 0.0
         },
         Direction::LEFT  => return match current_direction {
-            Direction::UP    => 270.0,
+            Direction::UP    => 90.0,
             Direction::DOWN  => 180.0,
             _ => 0.0
         },
         Direction::DOWN  => return match current_direction {
             Direction::LEFT  =>   0.0,
-            Direction::RIGHT => 270.0,
+            Direction::RIGHT =>  90.0,
             _ => 0.0
         },
         Direction::RIGHT => return match current_direction {
             Direction::UP    => 0.0,
-            Direction::DOWN  => 90.0,
+            Direction::DOWN  => 270.0,
             _ => 0.0
         },
     }
@@ -246,11 +265,14 @@ fn draw_game(
     draw_context:           &mut RaylibDrawHandle, 
     texture_map:            &TextureMap,
     snake:                  &Snake,
-    apple:                  &Apple) {
+    apple:                  &Apple,
+    particle_system:        &particles::ParticleSystem) {
 
     draw_context.clear_background(Color::WHITE);
 
     draw_context.draw_texture(&texture_map.background_texture, 0, 0, Color::WHITE);
+
+    particle_system.draw(draw_context, &texture_map.apple_texture);
 
     draw_snake(
         draw_context,
@@ -298,7 +320,6 @@ fn draw_snake_part(
         rotation,
         Color::WHITE
     );
-
 }
 
 fn draw_snake(
@@ -307,16 +328,54 @@ fn draw_snake(
     snake:        &Snake) {
 
     let mut previous_direction: Option<Direction> = None;
-    for snake_part in (&snake.parts).into_iter().rev() {
+    let mut last_drawn_was_head: bool = true;
+    // @note: GIANT note. We're reverse iterating here. The head of the snake is always
+    //  at the end of the vector. 
+    for (_, window) in (&snake.parts).windows(2).into_iter().rev().enumerate() {
+
+        // @note: The current position is 1 because, we're reverse iterating 
+        //  above.  
+        let snake_part      = window[1];
+        let next_snake_part = window[0];
         // Draw head
         if previous_direction.is_none() {
-            draw_snake_part(
-                draw_context, 
-                &texture_map.snake_head_texture, 
-                snake_part.x, 
-                snake_part.y, 
-                map_direction_to_rotation(snake.head_direction)
-            );
+            // Headed same way as next part to draw, just do a rotate
+            if snake_part.direction == next_snake_part.direction {
+                draw_snake_part(
+                    draw_context, 
+                    &texture_map.snake_head_straight_texture, 
+                    snake_part.x, 
+                    snake_part.y, 
+                    map_direction_to_rotation(snake.head_direction)
+                );
+            } else {
+                draw_snake_part(
+                    draw_context, 
+                    match snake_part.direction {
+                        Direction::UP     => {
+                            if next_snake_part.direction == Direction::LEFT {
+                                &texture_map.snake_head_turning_right_texture
+                            } else {
+                                &texture_map.snake_head_turning_left_texture
+                            }
+                        },
+                        Direction::DOWN   => {
+                            if next_snake_part.direction == Direction::LEFT {
+                                &texture_map.snake_head_turning_left_texture
+                            } else {
+                                &texture_map.snake_head_turning_right_texture
+                            }
+                        },
+                        Direction::LEFT   => {&texture_map.snake_head_straight_texture},
+                        Direction::RIGHT  => {&texture_map.snake_head_straight_texture}
+                    }, 
+                    snake_part.x, 
+                    snake_part.y, 
+                    0.0
+                    // map_direction_to_rotation(snake.head_direction)
+                );
+                
+            }
             
             previous_direction = Some(snake.head_direction);
         } else {
@@ -326,7 +385,7 @@ fn draw_snake(
             }
 
             // Do we need to draw a middle straight segment?
-            if snake_part.direction == previous_direction.unwrap() {
+            if snake_part.direction == previous_direction.unwrap() || last_drawn_was_head {
                 match snake_part.direction {
                     Direction::UP   | Direction::DOWN   => {
                         draw_snake_part(
@@ -349,29 +408,30 @@ fn draw_snake(
                 }
             // @note: Curved segment
             } else {
-
-                // draw_snake_part(
-                //     draw_context, 
-                //     &texture_map.snake_corner_texture, 
-                //     snake_part.x, 
-                //     snake_part.y, 
-                //     map_difference_in_direction_to_rotation_for_snake_corner(
-                //         previous_direction.unwrap(), 
-                //         snake_part.direction
-                //     )
-                // );
-
-                draw_context.draw_rectangle_rounded(
-                    Rectangle {
-                        x: snake_part.x, 
-                        y: snake_part.y, 
-                        width:  20.0, 
-                        height: 20.0
-                    }, 0.5, 10, Color::GRAY
+                draw_snake_part(
+                    draw_context, 
+                    &texture_map.snake_corner_texture, 
+                    snake_part.x, 
+                    snake_part.y, 
+                    map_difference_in_direction_to_rotation_for_snake_corner(
+                        previous_direction.unwrap(), 
+                        snake_part.direction
+                    )
                 );
+
+                // draw_context.draw_rectangle_rounded(
+                //     Rectangle {
+                //         x: snake_part.x, 
+                //         y: snake_part.y, 
+                //         width:  20.0, 
+                //         height: 20.0
+                //     }, 0.5, 10, Color::GRAY
+                // );
             }
 
             previous_direction = Some(snake_part.direction);
+
+            last_drawn_was_head = false;
         }
     }
 
